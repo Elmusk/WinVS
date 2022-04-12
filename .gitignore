@@ -1,0 +1,24 @@
+# Windows:
+*.db
+
+# CPP
+*.asm
+*.obj
+*.pdb
+*.idb
+*.exe
+*.log
+*.bin
+
+# Visual studio
+*.ipch
+*.sln
+*.ilk
+*.sqlite
+*.suo
+*.recipe
+*.tlog
+*.enc
+*.vcxproj
+*.filters
+*.user
