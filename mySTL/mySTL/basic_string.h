@@ -17,7 +17,8 @@ template<class CharType>
 struct char_traits
 {
 	using char_type = CharType;
-
+//
+//声明为静态方法可能是由于这些函数会被经常使用？
 	// 
 	static size_t length(const char_type* str)
 	{
@@ -77,8 +78,6 @@ struct char_traits
             *dst = ch;
         return r;
     }
-
-
 };
 
 #define STRING_INIT_SIZE 32
