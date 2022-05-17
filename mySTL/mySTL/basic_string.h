@@ -156,7 +156,7 @@ public:
     {
         init_from(lhs.buffer_, 0, lhs.size_);
     }
-
+    //右值引用
     basic_string(basic_string&& rhs) noexcept
         : buffer_(rhs.buffer_), size_(rhs.size_), cap_(rhs.cap_)
     {
@@ -166,15 +166,51 @@ public:
     }
 
     // 迭代器构造
-    
-    // operators override
+    template<class Iter, typename std::enable_if<mystl::is_input_iterator<Iter>::value, int>::type = 0>
+    basic_string(Iter first, Iter last)
+    {
+        copy_init(first, last, iterator_category(first));
+    }
 
-    
+    // operators override 复制构造
+    basic_string& operator=(const basic_string& rhs);
+    basic_string& operator=(basic_string&& rhs) noexcept;
+
+    basic_string& operator=(const_pointer str);
+    basic_string& operator=(value_type ch);    
+
     ~basic_string() { destroy_buffer(); }
 
 public:
     // iterator operations
-    
+    iterator               begin()         noexcept
+    { return buffer_; }
+    const_iterator         begin()   const noexcept
+    { return buffer_; }
+    iterator               end()           noexcept
+    { return buffer_ + size_; }
+    const_iterator         end()     const noexcept
+    { return buffer_ + size_; }
+
+    reverse_iterator       rbegin()        noexcept
+    { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin()  const noexcept
+    { return const_reverse_iterator(end()); }
+    reverse_iterator       rend()          noexcept
+    { return reverse_iterator(begin()); }
+    const_reverse_iterator rend()    const noexcept
+    { return const_reverse_iterator(begin()); }
+
+    const_iterator         cbegin()  const noexcept
+    { return begin(); }
+    const_iterator         cend()    const noexcept
+    { return end(); }
+    const_reverse_iterator crbegin() const noexcept
+    { return rbegin(); }
+    const_reverse_iterator crend()   const noexcept
+    { return rend(); }
+
+
     // capacity operations
     bool empty() const noexcept { return size_ == 0; }
 
@@ -272,6 +308,12 @@ private:
     
     void init_from(const_pointer src, size_type pos, size_type n);
 
+    template<class Iter>
+    void copy_init(Iter first, Iter last, mystl::input_iterator_tag);
+
+    template<class Iter>
+    void copy_init(Iter first, Iter last, mystl::forward_iterator_tag);
+
     void destroy_buffer();
 
     // compare
@@ -339,6 +381,53 @@ void basic_string<CharType, CharTraits>::init_from(const_pointer src, size_type 
     size_ = count;
     cap_ = init_size;
 }
+
+// copy_init 函数
+template<class CharType, class CharTraits>
+template<class Iter>
+void basic_string<CharType, CharTraits>::copy_init(Iter first, Iter last, mystl::input_iterator_tag)
+{
+    size_type n = mystl::distance(first, last);
+    const auto init_size = mystl::max(static_cast<size_type>(STRING_INIT_SIZE), n+1);
+    try
+    {
+        buffer_ = data_allocator::allocate(init_size);
+        size_ = n;
+        cap_ = init_size;
+    }
+    catch(...)
+    {
+        buffer_ = nullptr;
+        size_ = 0;
+        cap_ = 0;
+        throw;
+    }
+    for (; n > 0; --n, ++first)
+        append(*first);       // append函数使用了buffer_
+}
+
+template<class CharType, class CharTraits>
+template<class Iter>
+void basic_string<CharType, CharTraits>::copy_init(Iter first, Iter last, mystl::forward_iterator_tag)
+{
+    const size_type n = mystl::distance(first, last);
+    const auto init_size = mystl::max(static_cast<size_type>(STRING_INIT_SIZE), n+1);
+    try
+    {
+        buffer_ = data_allocator::allocate(init_size);
+        size_ = n;
+        cap_ = init_size;
+        mystl::uninitialized_copy(first, last, buffer_);
+    }
+    catch(...)
+    {
+        buffer_ = nullptr;
+        size_ = 0;
+        cap_ = 0;
+        throw;
+    }
+}
+
 
 // destroy_buffer  
 template<class CharType, class CharTraits>

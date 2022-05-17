@@ -22,7 +22,7 @@ template<class Ty>
 void construct(Ty* ptr)
 {
     // 调用了 new 关键字
-    // placement new
+    // placement new
     ::new ((void*)ptr) Ty();
 }
 
