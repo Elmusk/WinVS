@@ -254,10 +254,40 @@ public:
     }
 
     // front(), back(), data(), c_str()
+    reference front()
+    {
+        MYSTL_DEBUG(!empty());
+        return *begin();
+    }
+    const_reference front() const
+    {
+        MYSTL_DEBUG(!empty());
+        return *begin();
+    }
+
+    reference back()
+    {
+        MYSTL_DEBUG(!empty());
+        return *(end() - 1);
+    }
+    const_reference back() const
+    {
+        MYSTL_DEBUG(!empty());
+        return *(end() - 1);
+    }
+
+    // 生成一个const char*指针，指向以空字符终止的数组。    
+    const_pointer data() const noexcept { return to_raw_pointer(); }
+    const_pointer c_str() const noexcept { return to_raw_pointer(); }
 
     // Operations of adding and removing
     
     // insert
+    iterator insert(const_iterator pos, value_type ch);
+    iterator insert(const_iterator pos, size_type count, value_type ch);
+
+    template<class Iter>
+    iterator insert(const_iterator pos, Iter first, Iter last);
 
     // push_back or pop_back
     void push_back(value_type ch) { append(1, ch); }
@@ -316,11 +346,19 @@ private:
 
     void destroy_buffer();
 
+    // get raw pointer
+    const_pointer to_raw_pointer() const;
+    // shrink to fit
+    void reinsert(size_type size);
+
     // compare
     int compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2) const;
 
     // reallocate
     void reallocate(size_type need);
+    iterator reallocate_and_fill(iterator pos, size_type n, value_type ch);
+    iterator reallocate_and_copy(iterator pos, const_iterator first, const_iterator last);
+
 };
 
 // Reserve storage space
@@ -340,8 +378,74 @@ void basic_string<CharType, CharTraits>::reserve(size_type n)
 }
 
 // 减少不用的空间
+template<class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::shrink_to_fit()
+{
+    if (size_ != cap_)
+        reinsert(size_);
+}
+
+// 在pos处插入一个元素
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::insert(const_iterator pos, value_type ch)
+{
+    iterator r = const_cast<iterator>(pos);
+    if (size_ == cap_)
+        return reallocate_and_fill(r, 1, ch);
+    char_traits::move(r+1, r, end() - r);
+    ++size_;
+    *r = ch;
+    return r;
+}
+
+// 在pos处插入 count 个元素
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::insert(const_iterator pos, size_type count, value_type ch)
+{
+    iterator r = const_cast<iterator>(pos);
+    if (count == 0)
+        return r;
+    if (size_ + count > cap_)
+        return reallocate_and_fill(r, count, ch);
+    if (pos == end())
+    {
+        char_traits::fill(end(), ch, count);
+        size_ += count;
+        return r;
+    }
+    char_traits::move(r + count, r, end() - r);
+    char_traits::fill(r, ch, count);
+    size_ += count;
+    return r;
+}
+
+// 在 pos 处插入[first, last)内的元素
+template<class CharType, class CharTraits>
+template<class Iter>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::insert(const_iterator pos, Iter first, Iter last)
+{
+    iterator r = const_cast<iterator>(pos);
+    const size_type len = mystl::distance(first, last);
+    if (len == 0)
+        return r;
+    if (cap_ - size_ < len)
+        return reallocate_and_copy(r, first, last);
+    if (pos == end())
+    {
+        mystl::uninitialized_copy(first, last, end());
+        size_ += len;
+        return r;
+    }
+    char_traits::move(r+len, r, end()-r);
+    mystl::uninitialized_copy(first, last, r);
+    size_ += len;
+    return r;
+}
 
 
+
+/*******************************************************************/
+// help function
 // 尝试初始化一段 buffer 
 template<class CharType, class CharTraits>
 void basic_string<CharType, CharTraits>::try_init() noexcept
@@ -428,7 +532,6 @@ void basic_string<CharType, CharTraits>::copy_init(Iter first, Iter last, mystl:
     }
 }
 
-
 // destroy_buffer  
 template<class CharType, class CharTraits>
 void basic_string<CharType, CharTraits>::destroy_buffer()
@@ -442,6 +545,73 @@ void basic_string<CharType, CharTraits>::destroy_buffer()
     }
 }
 
+// to_raw_pointer
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::const_pointer basic_string<CharType, CharTraits>::to_raw_pointer() const
+{
+    *(buffer_ + size_) = value_type();
+    return buffer_;
+}
+
+// reinsert 函数
+template<class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::reinsert(size_type size)
+{
+    auto new_buffer = data_allocator::allocate(size);
+    try
+    {
+        char_traits::move(new_buffer, buffer_, size);
+    }
+    catch(...)
+    {
+        data_allocator::deallocate(new_buffer);
+    }
+    buffer_ = new_buffer;
+    size_ = size;
+    cap_ = size;
+}
+
+// reallocate_and_fill函数
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::reallocate_and_fill(iterator pos, size_type n, value_type ch)
+{
+    const auto r = pos - buffer_;
+    const auto old_cap = cap_;
+    // 这里就涉及到重新分配内存的机制，是增加原来的一半，还是增加n ?
+    const auto new_cap = mystl::max(old_cap + n, old_cap + (old_cap >> 1));
+    auto new_buffer = data_allocator::allocate(new_cap);
+    auto e1 = char_traits::move(new_buffer, buffer_, r) + r;
+    auto e2 = char_traits::fill(e1, ch, n) + n;
+    char_traits::move(e2, buffer_ + r, size_ - r);
+    data_allocator::deallocate(buffer_, old_cap);
+    buffer_ = new_buffer;
+    size_ += n;
+    cap_ = new_cap;
+    return buffer_ + r;
+}
+
+// reallocate_and_copy 函数
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::reallocate_and_copy(iterator pos, const_iterator first, const_iterator last)
+{
+    const auto r = pos - buffer_;
+    const auto old_cap = cap_;
+    const size_type len = mystl::distance(first, last);
+    const auto new_cap = mystl::max(old_cap + len, old_cap + (old_cap >> 1));
+    auto new_buffer = data_allocator::allocate(new_cap);
+    auto e1 = char_traits::move(new_buffer, buffer_, r) + r;
+    auto e2 = mystl::uninitialized_copy(first, last, e1) + len;
+    char_traits::move(e2, buffer_ + r, size_ - r);
+    data_allocator::deallocate(buffer_, old_cap);
+    size_ += len;
+    buffer_ = new_buffer;
+    cap_ = new_cap;
+    return buffer_ + r;
+}
+
+
+/***************************************/
+// append 函数
 // 在末尾添加 count 个 ch
 template<class CharType, class CharTraits>
 basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(size_type count, value_type ch)

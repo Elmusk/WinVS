@@ -81,9 +81,33 @@ OutputIter copy(InputIter first, InputIter last, OutputIter result)
     return unchecked_copy(first, last, result);
 }
 
+/*****************************************************************************************/
+// copy_n
+// 把 [first, first + n)区间上的元素拷贝到 [result, result + n)上
+// 返回一个 pair 分别指向拷贝结束的尾部
+/*****************************************************************************************/
+template <class InputIter, class Size, class OutputIter>
+mystl::pair<InputIter, OutputIter> unchecked_copy_n(InputIter first, Size n, OutputIter result, mystl::input_iterator_tag)
+{
+    for (; n > 0; --n, ++first, ++result)
+    {
+        *result = *first;
+    }
+    return mystl::pair<InputIter, OutputIter>(first, result);
+}
 
+template <class RandomIter, class Size, class OutputIter>
+mystl::pair<RandomIter, OutputIter> unchecked_copy_n(RandomIter first, Size n, OutputIter result, mystl::random_access_iterator_tag)
+{
+    auto last = first + n;
+    return mystl::pair<RandomIter, OutputIter>(last, mystl::copy(first, last, result));
+}
 
-
+template <class InputIter, class Size, class OutputIter>
+mystl::pair<InputIter, OutputIter> copy_n(InputIter first, Size n, OutputIter result)
+{
+    return unchecked_copy_n(first, n, result, iterator_category(first));
+}
 
 
 
