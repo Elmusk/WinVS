@@ -308,11 +308,19 @@ public:
     }
     basic_string& append(const basic_string& str, size_type pos)
     {
-        return append(str, pos str.size_ - pos);
+        return append(str, pos, str.size_ - pos);
     }
+
     basic_string& append(const_pointer s)
     {
         return append(s, char_traits::length(s));
+    }
+    
+    // if enable_if value = false, then can't pass compile
+    template<class Iter, typename std::enable_if<mystl::is_input_iterator<Iter>::value, int>::type = 0>
+    basic_string& append(Iter first, Iter last)
+    {
+        return append_range(first, last);
     }
 
     // erase / clear
@@ -350,6 +358,10 @@ private:
     const_pointer to_raw_pointer() const;
     // shrink to fit
     void reinsert(size_type size);
+
+    // append
+    template<class Iter>
+    basic_string& append_range(Iter first, Iter last);
 
     // compare
     int compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2) const;
@@ -440,6 +452,51 @@ typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, Cha
     mystl::uninitialized_copy(first, last, r);
     size_ += len;
     return r;
+}
+
+
+/***************************************/
+// append 函数
+// 在末尾添加 count 个 ch
+template<class CharType, class CharTraits>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(size_type count, value_type ch)
+{
+    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
+    if (cap_ - size_ < count)
+        reallocate(count);
+    char_traits::fill(buffer_ + size_, ch, count);
+    size_ += count;
+    return *this;
+}
+
+// 在末尾添加 [str[pos], str[pos+count]] 一段
+template<class CharType, class CharTraits>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(const basic_string& str, size_type pos, size_type count)
+{
+    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
+    if (count == 0)
+        return *this;
+    if (cap_ - size_ < count)
+        reallocate(count);
+    char_traits::copy(buffer_ + size_, str.buffer_ + pos, count);
+    // 为什么不用 move 函数呢？
+    // move函数一般用在重新分配了一个内存后，新内存和旧内存的复制
+    // copy函数主要用在已存在的两个对象间的复制
+    // char_traits::move(buffer_ + size_, str.buffer_ + pos, count);
+    size_ += count;
+    return *this;
+}
+
+// 在末尾添加 [s, s+count] 一段
+template<class CharType, class CharTraits>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(const_pointer s, size_type count)
+{
+    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
+    if (cap_ - size_ < count)
+        reallocate(count);
+    char_traits::copy(buffer_ + size_, s, count);
+    size_ += count;
+    return *this;
 }
 
 
@@ -571,6 +628,25 @@ void basic_string<CharType, CharTraits>::reinsert(size_type size)
     cap_ = size;
 }
 
+// append_range，末尾追加一段 [first, last) 内的字符
+template <class CharType, class CharTraits>
+template <class Iter>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append_range(Iter first, Iter last)
+{
+    const size_type n = mystl::distance(first, last);
+    THROW_LENGTH_ERROR_IF(size_ > max_size() - n, "basic_string<Char, Traits>'s size is too big");
+
+    if (cap_ - size_ < n)
+        reallocate(n);
+    mystl::uninitialized_copy(first, last, buffer_ + size_); 
+    // mystl::uninitialized_copy_n(first, n, buffer_ + size_);
+    size_ += n;
+    return *this;
+}
+
+
+
+
 // reallocate_and_fill函数
 template<class CharType, class CharTraits>
 typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::reallocate_and_fill(iterator pos, size_type n, value_type ch)
@@ -610,45 +686,6 @@ typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, Cha
 }
 
 
-/***************************************/
-// append 函数
-// 在末尾添加 count 个 ch
-template<class CharType, class CharTraits>
-basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(size_type count, value_type ch)
-{
-    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
-    if (cap_ - size_ < count)
-        reallocate(count);
-    char_traits::fill(buffer_ + size_, ch, count);
-    size_ += count;
-    return *this;
-}
-
-// 在末尾添加 [str[pos], str[pos+count]] 一段
-template<class CharType, class CharTraits>
-basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(const basic_string& str, size_type pos, size_type count)
-{
-    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
-    if (count == 0)
-        return *this;
-    if (cap_ - size_ < count)
-        reallocate(count);
-    char_traits::copy(buffer_ + size_, str.buffer_ + pos, count);
-    size_ += count;
-    return *this;
-}
-
-// 在末尾添加 [s, s+count] 一段
-template<class CharType, class CharTraits>
-basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(const_pointer s, size_type count)
-{
-    THROW_LENGTH_ERROR_IF(size_ > max_size() - count, "basic_string<Char, Traits>'s size too big")
-    if (cap_ - size_ < count)
-        reallocate(count);
-    char_traits::copy(buffer_ + size_, s, count);
-    size_ += count;
-    return *this;
-}
 
 // compare functions
 // 比较两个 basic_string, 小于返回-1，大于返回1，相等返回0
