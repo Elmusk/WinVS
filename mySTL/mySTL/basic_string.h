@@ -324,6 +324,8 @@ public:
     }
 
     // erase / clear
+    iterator erase(const_iterator pos);
+    iterator erase(const_iterator first, const_iterator last);
     
     //resize
     
@@ -499,6 +501,32 @@ basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append(c
     return *this;
 }
 
+// 删除 pos 处的元素
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::erase(const_iterator pos)
+{
+    MYSTL_DEBUG(pos != end());
+    iterator r = const_cast<iterator>(pos);
+    char_traits::move(r, r + 1, end() - pos - 1); // 为什么多减个1 ？？
+    --size_;
+    return r;
+}
+
+// 删除 [first, last) 的元素，注意是左闭右开的区间，明白后面移动的长度了吧！！
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, CharTraits>::erase(const_iterator first, const_iterator last)
+{
+    if (first == begin() && last == end())
+    {
+        clear();
+        return end();
+    }
+    const size_type n = mystl::distance(first, last);
+    iterator r = const_cast<iterator>(first);
+    char_traits::move(r, last, end() - last);
+    size_ -= n;
+    return r;
+}
 
 
 /*******************************************************************/
