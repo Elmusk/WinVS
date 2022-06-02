@@ -328,8 +328,13 @@ public:
     iterator erase(const_iterator first, const_iterator last);
     
     //resize
+    void resize(size_type count)
+    {
+        resize(count, value_type());
+    }
+    void resize(size_type count, value_type ch);
     
-    
+    // 将string大小变为0 
     void clear() noexcept { size_ = 0; }
 
     // basic_string 的操作
@@ -365,7 +370,7 @@ private:
     template<class Iter>
     basic_string& append_range(Iter first, Iter last);
 
-    // compare
+    // compare, 加const是因为比较操作不涉及写，为保证安全，确保不会修改
     int compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2) const;
 
     // reallocate
@@ -528,6 +533,72 @@ typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, Cha
     return r;
 }
 
+// 重置容器大小: 将容器size_修改为count，多的删除，少了添加。
+template <class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::resize(size_type count, value_type ch)
+{
+    if (count < size_)
+    {
+        erase(buffer_ + count, buffer_ + size_);
+    }
+    else
+    {
+        append(count - size_, ch);
+        // char_traits::fill(buffer_ + size_, ch, count); 该语句无判断
+    }
+}
+
+// compare functions
+// 比较两个 basic_string, 小于返回-1，大于返回1，相等返回0
+template<class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare(const basic_string& other) const
+{
+    return compare_cstr(buffer_, size_, other.buffer_, other.size_);
+}
+
+// 从pos1下标开始，与other比较count1个字符
+template<class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1, const basic_string& other) const
+{
+    auto n1 = mystl::min(count1, size_ - pos1);
+    return compare_cstr(buffer_ + pos1, n1, other.buffer_, other.size_);
+}
+
+// 从pos1下标开始的count1个字符与另一个basic_string从pos2下标开始的count2个字符比较 
+template<class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1, const basic_string& other, size_type pos2, size_type count2) const
+{
+    auto n1 = mystl::min(count1, size_ - pos1);
+    auto n2 = mystl::min(count2, other.size_ - pos2);
+    // 源代码里没加 pos1 和 pos2 ？？
+    return compare_cstr(buffer_ + pos1, n1, other.buffer_ + pos2, n2);
+}
+
+// 跟一个字符串比较
+template<class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare(const_pointer s) const
+{
+    return compare_cstr(buffer_, size_, s, char_traits::length(s));
+}
+
+// 从下标 pos1 开始的 count1 个字符跟另一个字符串比较
+template <class CharType, class CharTraits> 
+int basic_string<CharType, CharTraits>::compare(size_type pos, size_type count, const_pointer s) const
+{
+    auto n1 = mystl::min(count, size_ - pos);
+    auto n2 = char_traits::length(s);
+    return compare_cstr(buffer_ + pos, n1, s, n2)
+}
+
+// 从下标 pos1 开始的 count1 个字符跟另一个字符串的前 count2 个字符比较
+template <class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1, const_pointer s, size_type count2) const
+{
+    auto n1 = mystl::min(count1, size_ - pos1);
+    auto n2 = mystl::min(count2, char_traits::length(s));
+    return compare_cstr(buffer_ + pos1, n1, s, n2);
+}
+
 
 /*******************************************************************/
 // help function
@@ -672,7 +743,33 @@ basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::append_r
     return *this;
 }
 
+// 比较两个字符串大小
+template <class CharType, class CharTraits>
+int basic_string<CharType, CharTraits>::compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2)
+{
+    auto rlen = mystl::min(n1, n2);
+    auto res = char_traits::compare(s1, s2, rlen)
+    if (res != 0)
+        return res;
+    if (n1 > n2)
+        return 1;
+    if (n1 < n2)
+        return -1;
+    return 0;
+}
 
+// reallocate function()
+// strategy: 新容量为原容量加上原容量的一半
+template<class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::reallocate(size_type need)
+{
+    const auto new_cap = mystl::max(cap_ + need, cap_ + (cap_ >> 1));
+    auto new_buffer = data_allocator::allocate(new_cap);
+    char_traits::move(new_buffer, buffer_, size_);
+    data_allocator::deallocate(buffer_);
+    buffer_ = new_buffer;
+    cap_ = new_cap;
+}
 
 
 // reallocate_and_fill函数
@@ -715,50 +812,7 @@ typename basic_string<CharType, CharTraits>::iterator basic_string<CharType, Cha
 
 
 
-// compare functions
-// 比较两个 basic_string, 小于返回-1，大于返回1，相等返回0
-template<class CharType, class CharTraits>
-int basic_string<CharType, CharTraits>::compare(const basic_string& other)
-{
-    return compare_cstr(buffer_, size_, other.buffer_, other.size_);
-}
-// 从pos1下标开始，与other比较count1个字符
-template<class CharType, class CharTraits>
-int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1, const basic_string& other) const
-{
-    auto n1 = mystl::min(count1, size_ - pos1);
-    return compare_cstr(buffer_ + pos1, n1, other.buffer_, other.size_);
-}
-// 
-template<class CharType, class CharTraits>
-int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1, const basic_string& other, size_type pos2, size_type count2) const
 
-
-// compare_cstr function
-template<class CharType, class CharTraits>
-int basic_string<CharType, CharTraits>::compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2) const
-{
-    auto rlen = mystl::min(n1, n2);
-    auto res = char_traits::compare(s1, s2, rlen);
-    if (res != 0) return res;
-    if (n1 < n2) return -1;
-    if (n1 > n2) return 1;
-    return 0;
-}
-
-
-// reallocate function()
-// strategy: 新容量为原容量加上原容量的一半
-template<class CharType, class CharTraits>
-void basic_string<CharType, CharTraits>::reallocate(size_type need)
-{
-    const auto new_cap = mystl::max(cap_ + need, cap_ + (cap_ >> 1));
-    auto new_buffer = data_allocator::allocate(new_cap);
-    char_traits::move(new_buffer, buffer_, size_);
-    data_allocator::deallocate(buffer_);
-    buffer_ = new_buffer;
-    cap_ = new_cap;
-}
 
 
 
