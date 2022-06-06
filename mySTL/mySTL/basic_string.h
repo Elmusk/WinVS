@@ -345,6 +345,23 @@ public:
     int compare(size_type pos1, size_type count1, const_pointer s) const;
     int compare(size_type pos1, size_type count1, const_pointer s, size_type count2) const;
 
+    // substr
+    basic_string substr(size_type index, size_type count=npos)
+    {
+        count = mystl::min(count, size_ - index);
+        return basic_string(buffer_ + index, buffer_ + index + count);
+        // return basic_string(buffer_ + index, count)?
+        // buffer_ 的类型是iterator，但也是一个pointer
+    }
+
+    // replace
+    basic_string& replace(size_type pos, size_type count, const basic_string& str)
+    {
+        THROW_OUT_OF_RANGE_IF(pos > size_, "basic_string<Char, Traits>::replace's pos out of range");
+        return replace_cstr(buffer_ + pos, count, str.buffer_, str.size_);
+    }
+
+
 
 private:
     // help functions
@@ -372,6 +389,9 @@ private:
 
     // compare, 加const是因为比较操作不涉及写，为保证安全，确保不会修改
     int compare_cstr(const_pointer s1, size_type n1, const_pointer s2, size_type n2) const;
+
+    // replace
+    basic_string& replace_cstr(const_iterator first, size_type count1, const_pointer str, size_type count2);
 
     // reallocate
     void reallocate(size_type need);
@@ -757,6 +777,34 @@ int basic_string<CharType, CharTraits>::compare_cstr(const_pointer s1, size_type
         return -1;
     return 0;
 }
+
+// 把first开始的count1个字符替换成 str 开始的count2 个字符
+template <class CharType, class CharTraits>
+basic_string& basic_string<CharType, CharTraits>::replace_cstr(const_iterator first, size_type count1, const_pointer str, size_type count2)
+{
+    if (static_cast<size_type>(cend() - first) < count1)
+        count1 = cend() - first;  // 应该有一个隐式类型转换
+    if (count1 < count2)
+    {
+        const size_type add = count2 - count1;
+        THROW_LENGTH_ERROR_IF(size_ > max_size() - add, "basic_string<Char, Traits>'s size too big");
+        if (size_ < cap_ - add)
+            reallocate(add);
+        pointer r = const_cast<pointer>(first);
+        char_traits::move(r + count2, first + count1, end() - (first + count1));
+        char_traits::copy(r, str, count2);
+        size_ += add;
+    }
+    else
+    {
+        pointer r = const_cast<pointer>(first);
+        char_traits::move(r + count2, first + count1, end() - (first + count1));
+        char_traits::copy(r, str, count2);
+        size_ -= (count1 - count2);
+    }
+    return *this;
+}
+
 
 // reallocate function()
 // strategy: 新容量为原容量加上原容量的一半
