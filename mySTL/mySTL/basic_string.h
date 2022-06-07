@@ -360,6 +360,60 @@ public:
         THROW_OUT_OF_RANGE_IF(pos > size_, "basic_string<Char, Traits>::replace's pos out of range");
         return replace_cstr(buffer_ + pos, count, str.buffer_, str.size_);
     }
+    basic_string& replace(const_iterator first, const_iterator last, const basic_string& str)
+    {
+        MYSTL_DEBUG(begin() <= first && last <= end() && first <= last);
+        return replace_cstr(first, static_cast<size_type>(last - first), str.buffer_, str.size_);
+    }
+
+    basic_string& replace(size_type pos, size_type count, const_pointer str)
+    {
+        THROW_OUT_OF_RANGE_IF(pos > size_, "basic_string<Char, Traits>::replace's pos out of range");
+        return replace_cstr(buffer_ + pos, count, str, char_traits::length(str));
+    }
+    basic_string& replace(const_iterator first, const_iterator last, const_pointer str)
+    {
+        MYSTL_DEBUG(begin() <= first && last <= end() && first <= last);
+        return replace_cstr(first, static_cast<size_type>(last - first), str, char_length(str));
+    }
+
+    basic_string& replace(size_type pos, size_type count, const_pointer str, size_type count2)
+    {
+        THROW_OUT_OF_RANGE_IF(pos > size_, "basic_string<Char, Traits>::replace's pos out of range");
+        return replace_cstr(buffer_ + pos, count, str, count2);
+    }
+    basic_string& replace(const_iterator first, const_iterator last, const_pointer str, size_type count)
+    {
+        MYSTL_DEBUG(begin() <= first && last <= end() && first <= last);
+        return replace_cstr(first, static_cast<size_type>(last - first), str, count);
+    }
+    
+    basic_string& replace(size_type pos, size_type count, size_type count2, value_type ch)
+    {
+        THROW_OUT_OF_RANGE_IF(pos > size_, "basic_string<Char, Traits>::replace's pos out of range");
+        return replace_fill(buffer_ + pos, count, count2, ch);
+    }
+    basic_string& replace(const_iterator first, const_iterator last, size_type count, value_type ch)
+    {
+        MYSTL_DEBUG(begin() <= first && last <= end() && first <= last);
+        return replace_fill(first, static_cast<size_type>(last - first), count, ch);
+    }
+
+    basic_string& replace(size_type pos1, size_type count1, const basic_string& str, size_type pos2, size_type count2=npos)
+    {
+        THROW_OUT_OF_RANGE_IF(pos1 > size_ || pos2 > str.size_, "basic_string<Char, Traits>::replace's pos out of range");
+        return replace_cstr(buffer_ + pos1, count1, str.buffer_ + pos2, count2);
+    }
+
+    template <class Iter, typename std::enable_if<mystl::is_input_iterator<Iter>::value, int>::type = 0>
+    basic_string& replace(const_iterator first, const_iterator last, Iter first2, Iter last2)
+    {
+        MYSTL_DEBUG(begin() <= first && last <= end() && first <= last);
+        return replace_copy(first, last, first2, last2);
+        // 是否可以用replace_cstr ?
+    }
+
+
 
 
 
@@ -392,6 +446,10 @@ private:
 
     // replace
     basic_string& replace_cstr(const_iterator first, size_type count1, const_pointer str, size_type count2);
+    basic_string& replace_fill(const_iterator first, size_type count1, size_type count2, value_type ch);
+    template<class Iter>
+    basic_string& replace_fill(const_iterator first, const_iterator last, Iter first2, Iter last2);
+    
 
     // reallocate
     void reallocate(size_type need);
@@ -780,7 +838,7 @@ int basic_string<CharType, CharTraits>::compare_cstr(const_pointer s1, size_type
 
 // 把first开始的count1个字符替换成 str 开始的count2 个字符
 template <class CharType, class CharTraits>
-basic_string& basic_string<CharType, CharTraits>::replace_cstr(const_iterator first, size_type count1, const_pointer str, size_type count2)
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::replace_cstr(const_iterator first, size_type count1, const_pointer str, size_type count2)
 {
     if (static_cast<size_type>(cend() - first) < count1)
         count1 = cend() - first;  // 应该有一个隐式类型转换
@@ -804,6 +862,66 @@ basic_string& basic_string<CharType, CharTraits>::replace_cstr(const_iterator fi
     }
     return *this;
 }
+
+//把 first 开始的 count1 个字符替换成 count2 个 ch 字符
+template <class CharType, class CharTraits>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::replace_fill(const_iterator first, size_type count1, size_type count2, value_type ch)
+{
+    if (static_cast<size_type>(cend() - first) < count1)
+        count1 = cend() - first;  // 应该有一个隐式类型转换
+    if (count1 < count2)
+    {
+        const size_type add = count2 - count1;
+        THROW_LENGTH_ERROR_IF(size_ > max_size() - add, "basic_string<Char, Traits>'s size too big");
+        if (size_ > cap_ - add)
+            reallocate(add);
+        pointer r = const_cast<iterator>(first);
+        char_traits::move(r + count2, first + count1, end() - (first + count1));
+        char_traits::fill(r, ch, count2);
+        size_ += add;
+    }
+    else
+    {
+        // const修饰的不能写，需要去掉const
+        pointer r = const_cast<iterator>(first);
+        char_traits::move(r + count2, first + count1, end() - (first + count1));
+        char_traits::fill(r, ch, count2);
+        size_ -= (count1 - count2);
+    }
+    return *this;
+}
+
+// 把 [first, last) 的字符替换成 [first2, last2)
+template <class CharType, class CharTraits>
+template <class Iter>
+basic_string<CharType, CharTraits>& basic_string<CharType, CharTraits>::replace_copy(const_iterator first, const_iterator last, Iter first2, Iter last2)
+{
+    size_type len1 = last - first;
+    size_type len2 = last2 - first2;
+    if (len1 < len2)
+    {
+        const size_type add = len2 - len1;
+        THROW_LENGTH_ERROR_IF(size_ > max_size() - add, "basic_string<Char, Traits>'s size too big");
+        if (size_ > cap_ - add)
+            reallocate(add);
+        pointer r = const_cast<iterator>(first);
+        char_traits::move(r + len2, first + len1, end() - (first + len1));
+        char_traits::copy(r, first2, len2)
+        // mystl::uninitialized_copy(first2, last2, r);
+        size_ += add;
+    }
+    else
+    {
+        // const修饰的不能写，需要去掉const
+        pointer r = const_cast<iterator>(first);
+        char_traits::move(r + len2, first + len1, end() - (first + len1));
+        char_traits::copy(r, first2, len2);
+        size_ -= (len1 - len2);
+    }
+    return *this;
+
+
+
 
 
 // reallocate function()
