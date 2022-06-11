@@ -413,6 +413,9 @@ public:
         // 是否可以用replace_cstr ?
     }
 
+    void reverse() noexcept;
+
+    void swap(basic_string& rhs) noexcept;
 
 
 
@@ -677,6 +680,13 @@ int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1
     return compare_cstr(buffer_ + pos1, n1, s, n2);
 }
 
+// 反转 basic_string
+template<class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::reverse() noexcept
+{
+    for (auto i = begin(), j = end(); i < j)
+        mystl::iter_swap(i++, --j);
+}
 
 /*******************************************************************/
 // help function

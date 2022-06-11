@@ -11,12 +11,14 @@
 namespace mystl
 {
 
+// move
 template<typename T>
 typename std::remove_reference<T>::type&& move(T&& arg) noexcept
 {
     return static_cast<typename std::remove_reference<T>::type&&>(arg);
 }
 
+// forward
 template<typename T>
 T&& forward(typename std::remove_reference<T>::type& arg) noexcept
 {
@@ -30,6 +32,7 @@ T&& forward(typename std::remove_reference<T>::type&& arg) noexcept
     return static_cast<T&&>(arg);
 }
 
+//swap
 template<class Tp>
 void swap(Tp& lhs, Tp& rhs)
 {
@@ -37,6 +40,10 @@ void swap(Tp& lhs, Tp& rhs)
     lhs = mystl::move(rhs);
     rhs = mystl::move(tmp);
 }
+
+// swap_range
+
+
 
 // --------------------------------------------------------------------------------------
 // pair
