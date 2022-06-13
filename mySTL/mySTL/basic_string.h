@@ -681,12 +681,26 @@ int basic_string<CharType, CharTraits>::compare(size_type pos1, size_type count1
 }
 
 // 反转 basic_string
+// 实现使用了std::move 减少了复制和拷贝
 template<class CharType, class CharTraits>
 void basic_string<CharType, CharTraits>::reverse() noexcept
 {
     for (auto i = begin(), j = end(); i < j)
         mystl::iter_swap(i++, --j);
 }
+
+// 交换两个 basic_string
+template<class CharType, class CharTraits>
+void basic_string<CharType, CharTraits>::swap(basic_string& rhs) noexcept
+{
+    if (this != &rhs)
+    {
+        mystl::swap(buffer_, rhs.buffer_);
+        mystl::swap(size_, rhs.size_);
+        mystl::swap(cap_, rhs.cap_);
+    }
+}
+
 
 /*******************************************************************/
 // help function

@@ -32,7 +32,8 @@ T&& forward(typename std::remove_reference<T>::type&& arg) noexcept
     return static_cast<T&&>(arg);
 }
 
-//swap
+// swap：交换两个值
+// 输入参数是具体的值
 template<class Tp>
 void swap(Tp& lhs, Tp& rhs)
 {
@@ -42,7 +43,21 @@ void swap(Tp& lhs, Tp& rhs)
 }
 
 // swap_range
+// 这里没有做判断？？
+template<class ForwardIter1, class ForwardIter2>
+ForwardIter2 swap_range(ForwardIter1 first1, ForwardIter1 last1, ForwardIter2 first2)
+{
+    for (; first1 != last1; ++first1, (void) ++first2)
+        mystl::swap(*first, *first2);
+    return first2;
 
+// swap: 
+// Tp(&a)[N]: N 个 const T 类型的对象的数组, 其中 a 为这个数组的引用，即为数组的首地址，
+template<class Tp, size_t N>
+void swap(Tp (&a)[N], Tp (&b)[N])
+{
+    mystl::swap_range(a, a+N, b);
+}
 
 
 // --------------------------------------------------------------------------------------
