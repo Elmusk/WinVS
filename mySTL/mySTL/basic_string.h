@@ -417,7 +417,13 @@ public:
 
     void swap(basic_string& rhs) noexcept;
 
+    // 查找相关操作
 
+    // find
+    size_type find(value_type ch, size_type pos = 0) const noexcept;
+    size_type find(const_pointer str, size_type pos = 0) const noexcept;
+    size_type find(const_pointer str, size_type pos, size_type count) const noexcept;
+    size_type find(const basic_string& str, size_type pos = 0) const noexcept;
 
 
 private:
@@ -699,6 +705,97 @@ void basic_string<CharType, CharTraits>::swap(basic_string& rhs) noexcept
         mystl::swap(size_, rhs.size_);
         mystl::swap(cap_, rhs.cap_);
     }
+}
+
+// 从下标 pos 开始查找字符为 ch 的元素，若找到返回其下标，否则返回 npos
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find(value_type ch, size_type pos) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        if (*(buffer_ + i) == ch)
+            return i;
+    }
+    return npos;    // npos：若没查找到则返回最大长度，为什么？可能是好记
+}
+
+// 从下标 pos 开始查找字符串 str，若找到返回起始位置的下标，否则返回 npos
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find(const_pointer str, size_type pos) const noexcept
+{
+    const auto len = char_traits::length(str);
+    if (len == 0)
+        return pos;
+    if (size_ - pos < len)
+        return npos;
+    const auto left = size_ - len;   // 感觉不太对
+    // const auto left = size_ - pos - len;
+    for (auto i = pos; i <= left; ++i)
+    {
+        if (*(buffer_ + i) == *str)
+        {
+            size_type j = 1;
+            for (; j < len; ++j)
+            {
+                if(*(buffer_ + i + j) != *(str + j))
+                    break;
+            }
+            if (j == len)
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找字符串 str 的前 count 个字符，若找到返回起始位置的下标，否则返回 npos
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find(const_pointer str, size_type pos, size_type count) const noexcept
+{
+    if (count == 0)
+        return pos;
+    if (size_ - pos < count)
+        return npos;
+    const auto left = size_ - pos - count;
+    for (auto i = pos; i <= left; ++i)
+    {
+        if (*(buffer_ + i) == *str)
+        {
+            size_type j = 1;
+            for (; j < count; ++j)
+                if (*(buffer_ + i + j) != *(str + j))
+                    break;
+            if (j == count)
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找字符串 str，若找到返回起始位置的下标，否则返回 npos
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find(const basic_string& str, size_type pos) const noexcept
+{
+    const size_type count = str.size_;
+    if (count == 0)
+        return pos;
+    if (size_ - pos < count)
+        return npos;
+    const auto left = size_ - pos - count;
+    for (auto i = pos; i <= left; ++i)
+    {
+        if (*(buffer_ + i) == str.front())
+        {
+            size_type j = 1;
+            for (; j < count; ++j)
+            {
+                if (*(buffer_ + i + j) != str[j])
+                    break;
+            }
+            if (j == count)
+                return i;
+        }
+    }
+    return npos;
 }
 
 
