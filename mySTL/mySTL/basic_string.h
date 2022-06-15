@@ -425,6 +425,36 @@ public:
     size_type find(const_pointer str, size_type pos, size_type count) const noexcept;
     size_type find(const basic_string& str, size_type pos = 0) const noexcept;
 
+    // rfind
+    size_type rfind(value_type ch, size_type pos = npos) const noexcept;
+    size_type rfind(const_pointer str, size_type pos = npos) const noexcept;
+    size_type rfind(const_pointer str, size_type pos, size_type count) const noexcept;
+    size_type rfind(const basic_string& str, size_type pos = npos) const noexcept;
+    
+// find_first_of
+    size_type find_first_of(value_type ch, size_type pos = 0)                    const noexcept;
+    size_type find_first_of(const_pointer s, size_type pos = 0)                  const noexcept;
+    size_type find_first_of(const_pointer s, size_type pos, size_type count)     const noexcept;
+    size_type find_first_of(const basic_string& str, size_type pos = 0)          const noexcept;
+
+    // find_first_not_of
+    size_type find_first_not_of(value_type ch, size_type pos = 0)                const noexcept;
+    size_type find_first_not_of(const_pointer s, size_type pos = 0)              const noexcept;
+    size_type find_first_not_of(const_pointer s, size_type pos, size_type count) const noexcept;
+    size_type find_first_not_of(const basic_string& str, size_type pos = 0)      const noexcept;
+
+    // find_last_of
+    size_type find_last_of(value_type ch, size_type pos = 0)                     const noexcept;
+    size_type find_last_of(const_pointer s, size_type pos = 0)                   const noexcept;
+    size_type find_last_of(const_pointer s, size_type pos, size_type count)      const noexcept;
+    size_type find_last_of(const basic_string& str, size_type pos = 0)           const noexcept;
+
+    // find_last_not_of
+    size_type find_last_not_of(value_type ch, size_type pos = 0)                 const noexcept;
+    size_type find_last_not_of(const_pointer s, size_type pos = 0)               const noexcept;
+    size_type find_last_not_of(const_pointer s, size_type pos, size_type count)  const noexcept;
+    size_type find_last_not_of(const basic_string& str, size_type pos = 0)       const noexcept;
+
 
 private:
     // help functions
@@ -755,7 +785,7 @@ typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, Ch
         return pos;
     if (size_ - pos < count)
         return npos;
-    const auto left = size_ - pos - count;
+    const auto left = size_ - count;
     for (auto i = pos; i <= left; ++i)
     {
         if (*(buffer_ + i) == *str)
@@ -780,7 +810,7 @@ typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, Ch
         return pos;
     if (size_ - pos < count)
         return npos;
-    const auto left = size_ - pos - count;
+    const auto left = size_ - count;
     for (auto i = pos; i <= left; ++i)
     {
         if (*(buffer_ + i) == str.front())
@@ -797,6 +827,268 @@ typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, Ch
     }
     return npos;
 }
+
+// 从下标 pos 开始反向查找值为 ch 的元素，与 find 类似
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::rfind(value_type ch, size_type pos) const noexcept
+{
+    if (pos >= size_)
+        pos = size_ - 1;
+    for (auto i = pos; i > 0; --i)
+    {
+        if (*(buffer_ + i) == ch)
+            return i;
+    }
+    return front() == ch ? 0 : npos;
+}
+
+// 从下标 pos 开始反向查找字符串 str，与 find 类似
+// 
+template<class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::rfind(const_pointer str, size_type pos) const noexcept
+{
+    if (pos >= size_)
+        pos = size_ - 1;
+    const size_type len = char_traits::length(str);
+    if (pos < len - 1)
+        return npos;
+    switch (len)
+    {
+        case 0:
+            return pos;
+        case 1:
+        {
+            for (auto i = pos; i != 0; --i)
+            {
+                if (*(buffer_ + i) == *str)
+                    return i;
+            }
+            return front() == *str ? 0 : npos;
+        }
+        default:
+        {
+            for (auto i = pos; i >= len - 1; --i)
+            {
+                if (*(buffer_ + i) == *(str + len - 1))
+                {
+                    size_type j = 1;
+                    for (; j < len; ++j)
+                        if (*(buffer_ + i - j) != *(str + len - j - 1))
+                            break;
+                }
+                if (j == len)
+                    return i - len + 1;
+            }
+        }
+        break;
+    }
+    return npos;
+}
+    
+// 从下标 pos 开始反向查找字符串 str 前 count 个字符，与 find 类似
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::rfind(const_pointer str, size_type pos, size_type count) const noexcept
+{
+    if (count == 0)
+        return pos;
+    if (pos >= size_)
+        pos = size_ - 1;
+    if (pos < count - 1)
+        return npos;
+    for (auto i = pos; i >= count - 1; --i)
+    {
+        if (*(buffer_ + i) == *(str + count - 1))
+        {
+            size_type j = 1;
+            for (; j < count; ++j)
+                if (*(buffer_ + i - j) != *(str + count - j - 1))
+                    break;
+            if (j == count)
+                return i - count + 1;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始反向查找字符串 str，与 find 类似
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::rfind(const basic_string& str, size_type pos) const noexcept
+{
+    const size_type count = str.size_;
+    if (pos >= size_)
+        pos = size_ - 1;
+    if (count == 0)
+        return pos;
+    if (pos < count - 1)
+        return npos;
+    for (auto i = pos; i >= count - 1; --i)
+    {
+        if (*(buffer_ + i) == str[count - 1])
+        {
+            size_type j = 1;
+            for (; j < count; ++j)
+            {
+                if (*(buffer_ + i - j) != str[count - j - 1])
+                    break;
+            }
+            if (j == count)
+                return i - count + 1;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找 ch 出现的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find_first_of(value_type ch, size_type pos) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        if (*(buffer_ + i) == ch)
+            return i;
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找字符串 s 其中的一个字符出现的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, CharTraits>::find_first_of(const_pointer s, size_type pos) const noexcept
+{
+    const size_type len = char_traits::length(str);
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < len; ++j)
+        {
+            if (ch == *(s + j)
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找字符串 s 
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_of(const_pointer s, size_type pos, size_type count) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < count; ++j)
+        {
+            if (ch == *(s + j))
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找字符串 str 其中一个字符出现的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_of(const basic_string& str, size_type pos) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < str.size_; ++j)
+        {
+            if (ch == str[j])
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找与 ch 不相等的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_not_of(value_type ch, size_type pos) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        if (*(buffer_ + i) != ch)
+            return i;
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找与字符串 s 其中一个字符不相等的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_not_of(const_pointer s, size_type pos) const noexcept
+{
+    const size_type len = char_traits::length(s);
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < len; ++j)
+        {
+            if (ch != *(s + j))
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找与字符串 s 前 count 个字符中不相等的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_not_of(const_pointer s, size_type pos, size_type count) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < count; ++j)
+        {
+            if (ch != *(s + j))
+                return i;
+        }
+    }
+    return npos;
+}
+
+// 从下标 pos 开始查找与字符串 str 的字符中不相等的第一个位置
+template <class CharType, class CharTraits>
+typename basic_string<CharType, CharTraits>::size_type
+basic_string<CharType, CharTraits>::
+find_first_not_of(const basic_string& str, size_type pos) const noexcept
+{
+    for (auto i = pos; i < size_; ++i)
+    {
+        value_type ch = *(buffer_ + i);
+        for (size_type j = 0; j < str.size_; ++j)
+        {
+            if (ch != str[j])
+                return i;
+        }
+    }
+    return npos;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*******************************************************************/
