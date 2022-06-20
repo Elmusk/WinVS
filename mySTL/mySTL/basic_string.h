@@ -455,6 +455,8 @@ public:
     size_type find_last_not_of(const_pointer s, size_type pos, size_type count)  const noexcept;
     size_type find_last_not_of(const basic_string& str, size_type pos = 0)       const noexcept;
 
+    // count
+    size_type count(value_type ch, size_type pos = 0) const noexcept;
 
 private:
     // help functions
@@ -496,6 +498,75 @@ private:
     iterator reallocate_and_copy(iterator pos, const_iterator first, const_iterator last);
 
 };
+
+// 复制赋值操作符
+template <class CharType, class CharTraits>
+basic_string<CharType, CharTraits>&
+basic_string<CharType, CharTraits>::
+operator=(const basic_string& rhs)
+{
+    if (this != &rhs)
+    {
+        basic_string tmp(rhs);
+        swap(tmp);
+    }
+    return *this;
+}
+
+// 移动赋值操作符
+template <class CharType, class CharTraits>
+basic_string<CharType, CharTraits>&
+basic_string<CharType, CharTraits>::
+operator=(basic_string&& rhs) noexcept
+{
+    destroy_buffer();
+    buffer_ = rhs.buffer_;
+    size_ = rhs.size_;
+    cap_ = rhs.cap_;
+    rhs.buffer_ = nullptr;
+    rhs.size_ = 0;
+    rhs.cap_ = 0;
+    return *this;
+}
+
+// 用一个字符串赋值
+template <class CharType, class CharTraits>
+basic_string<CharType, CharTraits>&
+basic_string<CharType, CharTraits>::
+operator=(const_pointer str)
+{
+    const size_type len = char_traits::length(str);
+    if (cap_ < len)
+    {
+        auto new_buffer = data_allocator::allocate(len + 1);
+        data_allocator::deallocate(buffer_);
+        buffer_ = new_buffer;
+        cap_ = len + 1;
+    }
+    char_traits::copy(buffer_, str, len);
+    size_ = len;
+    return *this;
+}
+
+// 用一个字符赋值
+template <class CharType, class CharTraits>
+basic_string<CharType, CharTraits>&
+basic_string<CharType, CharTraits>::
+operator=(value_type ch)
+{
+    if (cap_ < 1)
+    {
+        auto new_buffer = data_allocator::allocate(2);
+        data_allocator::deallocate(buffer_);
+        buffer_ = new_buffer;
+        cap_ = 2;
+    }
+    *buffer_ = ch;
+    size_ = 1;
+    return *this;
+}
+
+
 
 // Reserve storage space
 // 预留存储空间
@@ -959,143 +1030,26 @@ typename basic_string<CharType, CharTraits>::size_type basic_string<CharType, Ch
     {
         value_type ch = *(buffer_ + i);
         for (size_type j = 0; j < len; ++j)
-        {
-            if (ch == *(s + j)
-                return i;
-        }
+???MANY LINES MISSING
+        buffer_ = data_allocator::allocate(static_cast<size_type>(STRING_INIT_SIZE));
+        size_ = 0;
+        cap_ = 0;
     }
-    return npos;
-}
-
-// 从下标 pos 开始查找字符串 s 
-template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_of(const_pointer s, size_type pos, size_type count) const noexcept
-{
-    for (auto i = pos; i < size_; ++i)
+    catch (...)
     {
-        value_type ch = *(buffer_ + i);
-        for (size_type j = 0; j < count; ++j)
-        {
-            if (ch == *(s + j))
-                return i;
-        }
+        buffer_ = nullptr;
+        size_ = 0;
+        cap_ = 0;
     }
-    return npos;
 }
 
-// 从下标 pos 开始查找字符串 str 其中一个字符出现的第一个位置
+/*****************************************************************************************/
+// helper function
+
+// 尝试初始化一段 buffer，若分配失败则忽略，不会抛出异常
 template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_of(const basic_string& str, size_type pos) const noexcept
-{
-    for (auto i = pos; i < size_; ++i)
-    {
-        value_type ch = *(buffer_ + i);
-        for (size_type j = 0; j < str.size_; ++j)
-        {
-            if (ch == str[j])
-                return i;
-        }
-    }
-    return npos;
-}
-
-// 从下标 pos 开始查找与 ch 不相等的第一个位置
-template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_not_of(value_type ch, size_type pos) const noexcept
-{
-    for (auto i = pos; i < size_; ++i)
-    {
-        if (*(buffer_ + i) != ch)
-            return i;
-    }
-    return npos;
-}
-
-// 从下标 pos 开始查找与字符串 s 其中一个字符不相等的第一个位置
-template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_not_of(const_pointer s, size_type pos) const noexcept
-{
-    const size_type len = char_traits::length(s);
-    for (auto i = pos; i < size_; ++i)
-    {
-        value_type ch = *(buffer_ + i);
-        for (size_type j = 0; j < len; ++j)
-        {
-            if (ch != *(s + j))
-                return i;
-        }
-    }
-    return npos;
-}
-
-// 从下标 pos 开始查找与字符串 s 前 count 个字符中不相等的第一个位置
-template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_not_of(const_pointer s, size_type pos, size_type count) const noexcept
-{
-    for (auto i = pos; i < size_; ++i)
-    {
-        value_type ch = *(buffer_ + i);
-        for (size_type j = 0; j < count; ++j)
-        {
-            if (ch != *(s + j))
-                return i;
-        }
-    }
-    return npos;
-}
-
-// 从下标 pos 开始查找与字符串 str 的字符中不相等的第一个位置
-template <class CharType, class CharTraits>
-typename basic_string<CharType, CharTraits>::size_type
-basic_string<CharType, CharTraits>::
-find_first_not_of(const basic_string& str, size_type pos) const noexcept
-{
-    for (auto i = pos; i < size_; ++i)
-    {
-        value_type ch = *(buffer_ + i);
-        for (size_type j = 0; j < str.size_; ++j)
-        {
-            if (ch != str[j])
-                return i;
-        }
-    }
-    return npos;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*******************************************************************/
-// help function
-// 尝试初始化一段 buffer 
-template<class CharType, class CharTraits>
-void basic_string<CharType, CharTraits>::try_init() noexcept
+void basic_string<CharType, CharTraits>::
+try_init() noexcept
 {
     try
     {
@@ -1108,8 +1062,10 @@ void basic_string<CharType, CharTraits>::try_init() noexcept
         buffer_ = nullptr;
         size_ = 0;
         cap_ = 0;
+        // no throw
     }
 }
+
 
 // @breif   construct string using a char
 template<class CharType, class CharTraits>
